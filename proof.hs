@@ -1,6 +1,6 @@
 --
 --
--- ------------------------- Auxiliary functions (these are not written by me)
+-- ------------------------- Auxiliary functions (these are not written by me, apart from removeAll which is).
 
 merge :: Ord a => [a] -> [a] -> [a]
 merge xs [] = xs
@@ -21,8 +21,10 @@ minus (x:xs) (y:ys)
 variables :: [Var]
 variables = [ [x] | x <- ['a'..'z'] ] ++ [ x : show i | i <- [1..] , x <- ['a'..'z'] ]
 
-removeAll :: [Var] -> [Var] -> [Var]
-removeAll xs ys = [ x | x <- xs , not (elem x ys) ]
+removeAll :: Eq a => [a] -> [a] -> [a]
+removeAll x y = [n | n <- x, p n]
+   where
+     p xs = not (elem xs y)
 
 fresh :: [Var] -> Var
 fresh = head . removeAll variables
@@ -48,7 +50,7 @@ type2 :: Type
 type2 = (Base :-> Base) :-> (Base :-> Base)
 
 
--- -- - - - - - - - - - - -- Terms
+-- -- - - - - - - - - - - -- Terms (not written by me)
 --
 type Var = String
 --
@@ -69,7 +71,7 @@ instance Show Term where
   show = pretty
 --
 --
--- -- - - - - - - - - - - -- Numerals
+-- -- - - - - - - - - - - -- Numerals (These are not written by me).
 --
 numeral :: Int -> Term
 numeral i = Lambda "f" (Base :-> Base) (Lambda "x" (Base) (numeral' i))
@@ -137,6 +139,8 @@ example7 = numeral 2 `mul` (numeral 2 `mul` (numeral 2 `mul` (numeral 2 `mul` nu
 --
 -- -- - - - - - - - - - - -- Renaming, substitution, beta-reduction
 --
+
+--Used is not written by me.
 used :: Term -> [Var]
 used (Variable x) = [x]
 used (Lambda x t n) = [x] `merge` used n
@@ -148,32 +152,31 @@ rename x y (Variable z)
     | z == x    = Variable y
     | otherwise = Variable z
 rename x y (Lambda z t n)
-    | z == x    = Lambda z t n
-    | otherwise = Lambda z t (rename x y n)
+    | z == x    = Lambda (y) (t) (rename x y n)
+    | otherwise = Lambda (z) (t) (rename x y n)
 rename x y (Apply n m) = Apply (rename x y n) (rename x y m)
 
 
 substitute :: Var -> Term -> Term -> Term
-substitute x n (Variable y)
-    | x == y    = n
-    | otherwise = Variable y
-substitute x n (Lambda y t m)
-    | x == y    = Lambda y t m
-    | otherwise = Lambda z t (substitute x n (rename y z m))
-    where z = fresh (used n `merge` used m `merge` [x,y])
-substitute x n (Apply m p) = Apply (substitute x n m) (substitute x n p)
+substitute x n (Variable m)
+   | m == x = n
+   | otherwise = Variable m
+substitute replace replaceWith (Lambda binder type binded)
+   | binder ==  replace = Lambda binder type binded
+   | otherwise = Lambda (freshVar) (type) (substitute replace replaceWith (rename binder freshVar binded))
+   where
+     freshVar = fresh ((used binded) `merge` (used replaceWith) `merge` [binder] `merge` [replace])
+substitute x y (Apply n m) = Apply (substitute x y n) (substitute x y m)
 
 
 beta :: Term -> [Term]
-beta (Apply (Lambda x t n) m) =
-  [substitute x m n] ++
-  [Apply (Lambda x t n') m  | n' <- beta n] ++
-  [Apply (Lambda x t n)  m' | m' <- beta m]
-beta (Apply n m) =
-  [Apply n' m  | n' <- beta n] ++
-  [Apply n  m' | m' <- beta m]
-beta (Lambda x t n) = [Lambda x t n' | n' <- beta n]
+beta (Apply (Lambda binder type bound) x) = [substitute binder x bound]
+ ++ [Apply (Lambda binder type bound') x | bound' <- beta bound]
+ ++ [Apply (Lambda binder type bound) x' | x' <- beta x]
+beta (Apply x y) = [(Apply x' y) | x' <- beta x] ++ [(Apply x y') | y' <- beta y]
+beta (Lambda x type y) = [(Lambda x type m) | m <- (beta y)]
 beta (Variable _) = []
+
 --
 -- -- - - - - - - - - - - -- Normalize
 --
@@ -188,7 +191,7 @@ normalize m = do
     normalize (head ms)
 --
 --
--- ------------------------- Assignment 2: Type checking
+-- -------------------------Type checking
 --
 --
 type Context = [(Var, Type)]
@@ -219,7 +222,7 @@ example8 = Lambda "x" Base ((Apply (Apply (Variable "f") (Variable "x")) (Variab
 --
 --
 --
--- ------------------------- Assignment 3: Functionals
+-- ------------------------- Assignment 3: Functionals (Functional, Show and fun not written by me).
 --
 data Functional =
     Num Int
@@ -231,30 +234,7 @@ instance Show Functional where
 
 fun :: Functional -> Functional -> Functional
 fun (Fun f) = f
---
---
--- -- - - - - - - - - - - -- Examples
---
--- plussix : N -> N
-plussix :: Functional
-plussix = Fun add
-   where
-     add (Num i) = Num (i + 6)
 
-
---
--- -- plus : N -> (N -> N)
-plus :: Functional
-plus = Fun addTogether
-   where
-     addTogether (Num i) = Fun (\(Num x) -> Num (x + i))
---
--- -- twice : (N -> N) -> N -> N
-twice :: Functional
-twice = Fun funTwice
-   where
-     funTwice (Fun f) = Fun (\x -> f (f x))
---
 -- -- - - - - - - - - - - -- Constructing functionals
 --
 dummy :: Type -> Functional
