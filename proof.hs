@@ -161,20 +161,20 @@ substitute :: Var -> Term -> Term -> Term
 substitute x n (Variable m)
    | m == x = n
    | otherwise = Variable m
-substitute replace replaceWith (Lambda binder type binded)
-   | binder ==  replace = Lambda binder type binded
-   | otherwise = Lambda (freshVar) (type) (substitute replace replaceWith (rename binder freshVar binded))
+substitute replace replaceWith (Lambda binder t binded)
+   | binder ==  replace = Lambda binder t binded
+   | otherwise = Lambda (freshVar) (t) (substitute replace replaceWith (rename binder freshVar binded))
    where
      freshVar = fresh ((used binded) `merge` (used replaceWith) `merge` [binder] `merge` [replace])
 substitute x y (Apply n m) = Apply (substitute x y n) (substitute x y m)
 
 
 beta :: Term -> [Term]
-beta (Apply (Lambda binder type bound) x) = [substitute binder x bound]
- ++ [Apply (Lambda binder type bound') x | bound' <- beta bound]
- ++ [Apply (Lambda binder type bound) x' | x' <- beta x]
+beta (Apply (Lambda binder t bound) x) = [substitute binder x bound]
+ ++ [Apply (Lambda binder t bound') x | bound' <- beta bound]
+ ++ [Apply (Lambda binder t bound) x' | x' <- beta x]
 beta (Apply x y) = [(Apply x' y) | x' <- beta x] ++ [(Apply x y') | y' <- beta y]
-beta (Lambda x type y) = [(Lambda x type m) | m <- (beta y)]
+beta (Lambda x t y) = [(Lambda x t m) | m <- (beta y)]
 beta (Variable _) = []
 
 --
