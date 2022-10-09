@@ -1,4 +1,4 @@
---
+-- Assignment by Dr. Willem Heijltjes (http://willem.heijltj.es/). All functions that weren't written by me were written by him.
 --
 -- ------------------------- Auxiliary functions (these are not written by me, apart from removeAll which is).
 
